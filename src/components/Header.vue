@@ -3,8 +3,8 @@
         style="background-color: rgb(238, 241, 246);"
     >
         <div class="container app-header">
-            <el-link href="https://github.com/Indexyz/Dnsflare">
-                Dnsflare
+            <el-link href="https://qste.com">
+                楠格
             </el-link>
             <div class="header-right">
                 <el-link
