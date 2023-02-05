@@ -15,16 +15,17 @@
                 </el-link>
                 <el-dropdown
                     v-else
+                    style="margin-top: auto; margin-bottom: auto; font-size: 16px; cursor: pointer;"
                     @command="handleCommand"
                 >
-                    <i
-                        class="el-icon-setting"
-                    />
-                    <el-dropdown-menu slot="dropdown">
-                        <el-dropdown-item command="logout">
-                            登出
-                        </el-dropdown-item>
-                    </el-dropdown-menu>
+                    <FontAwesomeIcon icon="gear" />
+                    <template #dropdown>
+                        <el-dropdown-menu>
+                            <el-dropdown-item command="logout">
+                                登出
+                            </el-dropdown-item>
+                        </el-dropdown-menu>
+                    </template>
                 </el-dropdown>
             </div>
         </div>
@@ -32,31 +33,30 @@
 </template>
 
 
-<script lang="ts">
-import { Vue, Component } from 'vue-property-decorator'
-import { UserModule } from '../store/module'
+<script lang="ts" setup>
+import { computed } from 'vue'
+import { useUserStore } from '@/store/user'
+import { useRouter, useRoute } from 'vue-router'
+import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
+
+const userStore = useUserStore()
+const router = useRouter()
+const route = useRoute()
+
+const displayLogout = computed(() => {
+    return route.name !== 'LoginPage'
+})
 
 type HeaderCommand = 'logout'
 
-@Component({})
-export default class HeaderComponent extends Vue {
-    get displayLogout(): boolean {
-        return this.$route.name !== 'LoginPage'
-    }
-
-    onLogout() {
-        UserModule.setToken('')
-        this.$router.push({ name: 'LoginPage' })
-    }
-
-    handleCommand(command: HeaderCommand) {
-        switch (command) {
-            case 'logout': {
-                this.onLogout()
-                break
-            }
-            default: { break }
+function handleCommand(command: HeaderCommand) {
+    switch (command) {
+        case 'logout': {
+            userStore.logout()
+            router.push({ name: 'LoginPage' })
+            break
         }
+        default: { break }
     }
 }
 </script>
