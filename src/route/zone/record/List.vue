@@ -6,8 +6,9 @@
     />
     <el-card>
         <template #header>
-            <div style="display: flex">
+            <div class="card-header">
                 <span style="margin-top: auto; margin-bottom: auto;">DNS 列表</span>
+                <el-input @input="updateFilter" v-model="filterList" placeholder="输入过滤" />
                 <el-button
                     id="create-record-button"
                     text
@@ -20,7 +21,7 @@
         </template>
         <el-table
             v-loading="isLoading"
-            :data="datas"
+            :data="filterTableData"
         >
             <el-table-column
                 prop="name"
@@ -109,22 +110,22 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive, computed, defineProps } from 'vue'
+import { ref, Ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 // import { Vue, Component } from 'vue-property-decorator'
-import { listZoneDnsRecord, deleteRecord, patchRecord } from '@/api/dns'
+import { listZoneDnsRecord, deleteRecord, patchRecord, listZoneDnsRecordAll } from '@/api/dns'
 import RecordModal from './Record.vue'
 import { CloudflareDnsRecord, PageSettings } from '@/api'
-import { PaginationDetails, convertPagination } from '@/utils/pagination'
-
+import { PaginationDetails, convertPagination, LoadPageResponse, fullLoadPages } from '@/utils/pagination'
+const filterList = ref("")
 const isLoading = ref(true)
 
 const props = defineProps<{
     zoneId: string
 }>()
 
-const record = ref<RecordModal>()
-const datas = ref<CloudflareDnsRecord[]>([])
+const record = ref<typeof RecordModal>()
+const datas: Ref<CloudflareDnsRecord[]> = ref<CloudflareDnsRecord[]>([])
 const pageInfo = ref<PaginationDetails>({
     page: 1,
     size: 20,
@@ -134,18 +135,55 @@ const pageInfo = ref<PaginationDetails>({
 const zoneId = computed(() => {
     return props.zoneId
 })
+const filterTableData = computed(() => {
+    if (filterList.value.length === 0) {
+        return datas.value
+    }
+
+    return datas.value.filter(it => {
+        return it.name.includes(filterList.value) || it.content.includes(filterList.value)
+    })
+})
+
+const isFullyLoaded = ref(false)
+async function updateFilter() {
+    if (!isFullyLoaded.value) {
+        if (isLoading.value) {
+            return
+        }
+
+        isLoading.value = true
+        const pages = await fullLoadPages(listZoneDnsRecordAll(props.zoneId))
+        pageInfo.value = pages.pageDetail
+        datas.value = pages.data
+
+        isFullyLoaded.value = true
+        isLoading.value = false
+    }
+}
+
+async function rawLoadPage(page?: PageSettings): Promise<LoadPageResponse<any>> {
+    const records = await listZoneDnsRecord(zoneId.value, page)
+
+    if (records.result && records.resultInfo) {
+        return {
+            pageDetail: convertPagination(records.resultInfo),
+            data: records.result
+        }
+    }
+
+    return {
+        pageDetail: { page: 0, size: 0, total: 0 },
+        data: []
+    }
+}
 
 async function loadPage(page?: PageSettings) {
     isLoading.value = true
+    const data = await rawLoadPage(page)
 
-    const records = await listZoneDnsRecord(zoneId.value, page)
-
-    if (records.result) {
-        datas.value = records.result
-        if (records.resultInfo) {
-            pageInfo.value = convertPagination(records.resultInfo)
-        }
-    }
+    datas.value = data.data
+    pageInfo.value = data.pageDetail
 
     isLoading.value = false
 }
@@ -207,7 +245,7 @@ async function doDeleteRecord(record: CloudflareDnsRecord) {
 
 const getRecord = computed(() => {
     console.log(record.value)
-    return record.value as RecordModal
+    return record.value as (typeof RecordModal)
 })
 
 function displayCreate() {
@@ -240,5 +278,15 @@ loadPage()
     #create-record-button {
         padding: 0;
         margin-left: auto;
+    }
+
+    .card-header {
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        grid-column-gap: 1em;
+    }
+
+    .card-header > span {
+        margin: auto 0;
     }
 </style>
